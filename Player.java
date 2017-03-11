@@ -4,6 +4,6 @@ abstract class Player {
 
 	abstract public void acknowledgeTurn(Move m, Board b);
 
-	abstract public Game.HiddenMove getNextMove(Board b);
+	abstract public Move getNextMove(Board b);
 
 }

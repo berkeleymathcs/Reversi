@@ -17,9 +17,6 @@ public class Game {
 	private Player p2;
 	private Color turn;
 
-	public static abstract class HiddenMove {
-
-	}
 
 	public static Color flipColor(Color color) {
 		if (color == Game.Color.BLACK) {
