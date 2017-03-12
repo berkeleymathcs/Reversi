@@ -17,7 +17,7 @@ public class MinimaxAI extends Player {
 	}
 
 	private Move chooseBestMove(Board board, Game.Color turn, int depth) {
-		List<Move> validMoves = board.getAllValidMoves(turn);
+		List<Move> validMoves = board.findAllValidMoves(turn);
 		if (depth == 0 || validMoves.isEmpty()) {
 			Move done = new Move(turn);
 			done.score = evalBoard(board, turn);
@@ -43,7 +43,7 @@ public class MinimaxAI extends Player {
 		return bestMove;
 	}
 
-	public Move getNextMove(Board board) {
+	public Move chooseNextMove(Board board) {
 		return chooseBestMove(board, this.side, minimaxDepth);
 	}
 }

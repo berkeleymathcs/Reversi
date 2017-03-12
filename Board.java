@@ -5,6 +5,7 @@ public class Board {
 
 	private Game.Color[][] spaces;
 
+	// Sets up the board to the standard starting configuration. See Reversi rules
 	public Board() {
 		spaces = new Game.Color[SIDE_LENGTH][SIDE_LENGTH];
 
@@ -37,10 +38,11 @@ public class Board {
 		return spaces[x][y];
 	}
 
+	// returns false if current player must pass or board is filled
 	public boolean existsActiveMove(Game.Color side) {
 		for (int i = 0; i < SIDE_LENGTH; i++) {
 			for (int j = 0; j < SIDE_LENGTH; j++) {
-				if (spaces[i][j] == null && existsSandwich(side, i, j)) {
+				if (spaces[i][j] == null && formsSandwich(new Move(i, j, side))) {
 					return true;
 				}
 			}
@@ -48,28 +50,11 @@ public class Board {
 		return false;
 	}
 
-	public List<Move> getAllValidMoves(Game.Color side) {
-		List<Move> validMoves = new ArrayList<Move>();
-		if (!existsActiveMove(side)) {
-			if (existsActiveMove(Game.flipColor(side))) {
-				validMoves.add(new Move(side));
-			}
-			return validMoves;
-		}
-
-		for (int i = 0; i < SIDE_LENGTH; i++) {
-			for (int j = 0; j < SIDE_LENGTH; j++) {
-				if (spaces[i][j] == null && existsSandwich(side, i, j)) {
-					validMoves.add(new Move(i, j, side));
-				}
-			}
-		}
-
-		return validMoves;
-	}
-
 	public boolean isValidMove(Move move) {
 		Game.Color side = move.getSide();
+		
+		// Declare passing to be valid only when the current player cannot play an
+		// active move and the board state is not a deadlock
 		if (move.isPass()) {
 			return !existsActiveMove(side) && existsActiveMove(Game.flipColor(side));
 		}
@@ -77,38 +62,69 @@ public class Board {
 		int x = move.getX();
 		int y = move.getY();
 
-		if (!Board.onBoard(x, y) || this.spaces[x][y] != null) {
-			return false;
+		if (Board.onBoard(x, y) && this.spaces[x][y] == null) {
+			return formsSandwich(new Move(x, y, side));
 		}
 
-		return existsSandwich(side, x, y);
+		return false;
 	}
 
+	public List<Move> findAllValidMoves(Game.Color side) {
+		boolean playerMustPass = !existsActiveMove(side);
+		boolean opponentMustPass = !existsActiveMove(Game.flipColor(side));
+		boolean deadlock = playerMustPass && opponentMustPass;
+
+		if (deadlock) {
+			return new ArrayList<Move>();
+		}
+
+		if (playerMustPass) {
+			List<Move> pass = new ArrayList<Move>();
+			pass.add(new Move(side));
+			return pass;
+		}
+
+		List<Move> activeMoves = new ArrayList<Move>();
+
+		for (int i = 0; i < SIDE_LENGTH; i++) {
+			for (int j = 0; j < SIDE_LENGTH; j++) {
+				if (spaces[i][j] == null && formsSandwich(new Move(i, j, side))) {
+					activeMoves.add(new Move(i, j, side));
+				}
+			}
+		}
+
+		return activeMoves;
+	}
 
 	public static boolean onBoard(int x, int y) {
 		return (x >= 0 && x < SIDE_LENGTH && y >= 0 && y < SIDE_LENGTH);
 	}
 
   public void makeMove(Move move) throws InvalidMoveException {
+
+  	if (!isValidMove(move)) {
+  		throw new InvalidMoveException("Invalid Move");
+  	}
+
   	if (move.isPass()) {
   		return;
   	}
-  	
+
   	int x = move.getX();
   	int y = move.getY();
 
-  	if (isValidMove(move)) {
-  		this.spaces[x][y] = move.getSide();
-  		this.flipChips(x,y);
-  		return;
-  	}
-  	throw new InvalidMoveException("Invalid Move");
+  	this.spaces[x][y] = move.getSide();
+  	this.flipChips(x,y);
   }
 
-  private boolean existsSandwich(Game.Color side, int x, int y) {
-  	for (int i = -1; i <= 1; i++) {
-  		for (int j = -1; j <= 1; j++) {
-  			if ((i != 0 || j != 0) && existsSandwichInDir(side, x, y, i, j)) {
+  // A piece can be placed on the board only if it would form a "sandwich" with
+  // the pieces in an outward pointing ray (horizontal, vertical, diagonal).
+  // Example: _ W W W B. A black move on the _ forms a sandwich with the pieces to the right.
+  private boolean formsSandwich(Move m) {
+  	for (int dirX = -1; dirX <= 1; dirX++) {
+  		for (int dirY = -1; dirY <= 1; dirY++) {
+  			if ((dirX != 0 || dirY != 0) && formsSandwichInDir(m, dirX, dirY)) {
   				return true;
   			}
   		}
@@ -116,46 +132,73 @@ public class Board {
   	return false;
   }
 
-	private boolean existsSandwichInDir(Game.Color side, int x, int y, int changeX, int changeY) {
+  // Checks for a sandwich in the direction of the vector (dirX, dirY).
+  // dirX and dirY have value -1, 0, or 1, and are not both 0.
+	private boolean formsSandwichInDir(Move m, int dirX, int dirY) {
 
-		if (!onBoard(x+changeX, y+changeY) || spaces[x+changeX][y+changeY] != Game.flipColor(side)) {
+		int x = m.getX();
+		int y = m.getY();
+
+		Game.Color side = m.getSide();
+
+		// neighboring piece must belong to opponent
+		if (!onBoard(x + dirX, y + dirY) || spaces[x+dirX][y+dirY] != Game.flipColor(side)) {
 			return false;
 		}
 
-		int n = 2;
+		x += dirX;
+		y += dirY;
 
-		while (onBoard(x+n*changeX,y+n*changeY)) {
-			if (spaces[x+n*changeX][y+n*changeY] == side) {
+		while (onBoard(x, y)) {
+			if (spaces[x][y] == side) {
 				return true;
 			}
-			if (spaces[x+n*changeX][y+n*changeY] == null) {
+			if (spaces[x][y] == null) {
 				return false;
 			}
-			n++;
+			x += dirX;
+			y += dirY;
 		}
 
 		return false;
 	}
 
+	// Assumes a piece that forms a sandwich has just been placed at (x,y).
 	private void flipChips(int x, int y) {
-		for (int i = -1; i <= 1; i++) {
-			for (int j = -1; j <= 1; j++) {
-				if (i != 0 || j != 0) {
-					flipChipsInDir(x, y, i, j);
+		for (int dirX = -1; dirX <= 1; dirX++) {
+			for (int dirY = -1; dirY <= 1; dirY++) {
+				if (dirX != 0 || dirY != 0) {
+					flipChipsInDir(x, y, dirX, dirY);
 				}
 			}
 		}
 	}
 
-	private void flipChipsInDir(int x, int y, int changeX, int changeY) {
-		int n = 1;
-		while (onBoard(x+n*changeX,y+n*changeY) && spaces[x+n*changeX][y+n*changeY] == Game.flipColor(spaces[x][y])) {
-			n++;
+	// follow the direction (dirX, dirY) to verify that a sandwich exists,
+	// then iterate back and flip the pieces.
+	private void flipChipsInDir(int x, int y, int dirX, int dirY) {
+		Game.Color targetColor = spaces[x][y];
+		Game.Color oppositeColor = Game.flipColor(targetColor);
+
+		x += dirX;
+		y += dirY;
+
+		while (onBoard(x, y) && spaces[x][y] == oppositeColor) {
+			x += dirX;
+			y += dirY;
 		}
-		if (onBoard(x+n*changeX,y+n*changeY) && spaces[x+n*changeX][y+n*changeY] == spaces[x][y]) {
-			for (n--; n > 0; n--) {
-				spaces[x+n*changeX][y+n*changeY] = spaces[x][y];
-			}
+
+		// checks if fell off board or did not form a sandwich
+		if (!onBoard(x,y) || spaces[x][y] != targetColor) {
+			return;
+		}
+
+		x -= dirX;
+		y -= dirY;
+		while (spaces[x][y] == oppositeColor) {
+			spaces[x][y] = targetColor;
+			x -= dirX;
+			y -= dirY;
 		}
 	}
 
@@ -174,21 +217,21 @@ public class Board {
 	}
 
 	public String toString() {
-		String output = " ";
+		String boardASCII = " ";
 		for (int i = 0; i < SIDE_LENGTH; i++) {
-			output += "   " + i;
+			boardASCII += "   " + i;
 		}
 		String horizLine = "  ---------------------------------";
-		output += "\n" + horizLine;
+		boardASCII += "\n" + horizLine;
 		for (int i = 0; i < SIDE_LENGTH; i++) {
-			output += "\n";
-			output += i + " ";
+			boardASCII += "\n";
+			boardASCII += i + " ";
 			for (int j = 0; j < SIDE_LENGTH; j++) {
-				output += "| " + Game.colorToString(spaces[i][j]) + " ";
+				boardASCII += "| " + Game.colorToString(spaces[i][j]) + " ";
 			}
-			output += "|";
-			output += "\n" + horizLine;
+			boardASCII += "|";
+			boardASCII += "\n" + horizLine;
 		}
-		return output;
+		return boardASCII;
 	}
 }

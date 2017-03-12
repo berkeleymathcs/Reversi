@@ -4,19 +4,18 @@ public class Game {
 
 	public enum Color {BLACK, WHITE};
 
+	// Note: Black goes first in this game
 
-	// Black goes first.
-	// If a player cannot make a legal move, play passes
-	// to the other player.
-
-	// The board for the game and the player information must be private
-	// 
+	// Anti-cheating design:
+	// Pass defensive copies of Move/Board objects to players to prevent unauthorized
+	// changes to current game state.
+	// Hide Player objects from their opponents to prevent players from running opponent's
+	// chooseNextMove() method, which would reveal the opponent's strategy.
 
 	private Board board;
-	private Player p1;
-	private Player p2;
+	private Player p1; // BLACK player
+	private Player p2; // WHITE player
 	private Color turn;
-
 
 	public static Color flipColor(Color color) {
 		if (color == Game.Color.BLACK) {
@@ -28,13 +27,14 @@ public class Game {
 		}
 	}
 
+	// Succinct symbols "B" and "W" for e.g., printing board state to stdout.
 	public static String colorToString(Color color) {
 		if (color == Game.Color.BLACK) {
 			return "B";
 		} else if (color == Game.Color.WHITE) {
 			return "W";
 		} else {
-			return " ";
+			return "-";
 		}
 	}
 
@@ -45,7 +45,7 @@ public class Game {
 		turn = Game.Color.BLACK;
 	}
 
-	private Player turnToPlayer(Game.Color turn) {
+	private Player getCurrentPlayer() {
 		if (turn == Game.Color.BLACK) {
 			return p1;
 		} else if (turn == Game.Color.WHITE) {
@@ -68,53 +68,77 @@ public class Game {
 
 	private void announceWinner(Color c) {
 		if (c != null) {
-			System.out.print("The winner is " + c);
+			System.out.println("The winner is " + c);
 		} else {
 			System.out.println("It's a tie game!");
 		}
 	}
 
+	// Notify players of each turn that happens. Players may use
+	// this information to e.g., help them choose future moves.
 	private void broadcastTurn(Move m, Board b) {
 		p1.acknowledgeTurn(m, b);
 		p2.acknowledgeTurn(m, b);
 	}
 
-	public static void main(String[] args) {
+	private static boolean areValidArguments(String[] args) {
 		if (args.length != 2) {
-			System.err.println("Must enter two players as arguments");
-			return;
+			System.err.println("Players must be entered as two arguments, e.g., HUMAN CPU");
+			return false;
 		}
+		if (args[0] == null || args[1] == null || !Game.isValidPlayer(args[0]) || !Game.isValidPlayer(args[1])) {
+			System.err.println("Players must be entered as two arguments, e.g., HUMAN CPU");
+			return false;
+		}
+		return true;
+	}
 
-		Player p1;
-		Player p2;
+	private static boolean isValidPlayer(String s) {
+		if (s == null) {
+			return false;
+		}
+		return s.equals("HUMAN") || s.equals("CPU");
+	}
 
-		if (args[0].equals("HUMAN")) {
-			p1 = new Human(Game.Color.BLACK);
-		} else if (args[0].equals("CPU")) {
-			p1 = new MinimaxAI(Game.Color.BLACK);
+	private static Player constructPlayer(String s, Game.Color c) {
+		if (s.equals("HUMAN")) {
+			return new Human(c);
+		} else if (s.equals("CPU")) {
+			return new MinimaxAI(c);
 		} else {
-			System.out.println("input 1 must be HUMAN or CPU");
-			return;
+			return null;
+		}
+	}
+
+	private void printBoard() {
+		System.out.println(this.board);
+	}
+
+	public static void main(String[] args) {
+
+		// Parse/validate input, etc.
+
+		if (!areValidArguments(args)) {
+			System.exit(1);
 		}
 
-		if (args[1].equals("HUMAN")) {
-			p2 = new Human(Game.Color.WHITE);
-		} else if (args[1].equals("CPU")) {
-			p2 = new MinimaxAI(Game.Color.WHITE);
-		} else {
-			System.out.println("input 2 must be HUMAN or CPU");
-			return;
-		}
+		Player p1, p2;
+
+		p1 = constructPlayer(args[0], Game.Color.BLACK);
+		p2 = constructPlayer(args[1], Game.Color.WHITE);
 
 		Game game = new Game(p1, p2);
-		System.out.println(game.board.toString());
+		game.printBoard();
+
+		// Game loop
 		while (true) {
 
-			Player p = game.turnToPlayer(game.turn);
-
+			Player currentPlayer = game.getCurrentPlayer();
 			System.out.println("It is " + game.turn + "'s turn");
 
+			// Case 1: currentPlayer cannot make a move
 			if (!game.board.existsActiveMove(game.turn)) {
+				// if deadlock or board is filled, then announce end of game
 				if (!game.board.existsActiveMove(flipColor(game.turn))) {
 					Color winner = game.findWinner();
 					game.announceWinner(winner);
@@ -125,10 +149,12 @@ public class Game {
 				continue;
 			}
 
+			// Case 2: currentPlayer is asked to give his next move
 			Move nextMove;
 			while (true) {
 				try {
-					nextMove = p.getNextMove(game.board);
+					if (currentPlayer == null) {System.out.println("null player");}
+					nextMove = currentPlayer.chooseNextMove(game.board);
 					game.board.makeMove(nextMove);
 					break;
 				} catch (InvalidMoveException e) {
@@ -139,7 +165,7 @@ public class Game {
 			game.turn = Game.flipColor(game.turn);
 			game.broadcastTurn(nextMove, new Board(game.board));
 
-			System.out.println(game.board.toString());
+			game.printBoard();
 		}
 	}
 }

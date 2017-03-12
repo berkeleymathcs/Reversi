@@ -8,10 +8,10 @@ public class Human extends Player {
 	}
 
 	public void acknowledgeTurn(Move m, Board b) {
-
+		System.out.println(m.getSide() + " just played a piece on (" + m.getX() + ", " + m.getY());
 	}
 
-	public Move getNextMove(Board b) {
+	public Move chooseNextMove(Board b) {
 		if (!b.existsActiveMove(this.side)) {
 			return new Move(this.side);
 		}
