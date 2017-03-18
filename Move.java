@@ -1,6 +1,5 @@
 public class Move {
-	// This class simply encapsulates the pieces of information that make up a move
-	// into a single object -- a Move object.
+	// This class simply encapsulates the pieces of information that make up a move into a single object.
 	private final int x;
 	private final int y;
 	private final Game.Color side;
