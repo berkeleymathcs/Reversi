@@ -1,8 +1,10 @@
 public class Move {
-	// This class simply encapsulates the pieces of information that make up a move into a single object.
+	// This class simply encapsulates the information associated with a move into a single object.
 	private final int x;
 	private final int y;
 	private final Game.Color side;
+	// (below) score is a value used by the MinimaxAI.
+	// A better design would hide this value in the MinimaxAI class.
 	public int score;
 	private final boolean pass;
 
