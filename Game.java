@@ -94,10 +94,7 @@ public class Game {
 	}
 
 	private static boolean isValidPlayer(String s) {
-		if (s == null) {
-			return false;
-		}
-		return s.equals("HUMAN") || s.equals("CPU");
+		return s != null && (s.equals("HUMAN") || s.equals("CPU"));
 	}
 
 	private static Player constructPlayer(String s, Game.Color c) {
@@ -153,7 +150,6 @@ public class Game {
 			Move nextMove;
 			while (true) {
 				try {
-					if (currentPlayer == null) {System.out.println("null player");}
 					nextMove = currentPlayer.chooseNextMove(game.board);
 					game.board.makeMove(nextMove);
 					break;
